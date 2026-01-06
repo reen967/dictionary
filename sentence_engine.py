@@ -1,24 +1,24 @@
 import numpy as np
-from .dictionary import NOUNS, VERBS, SINES, JITTERS
+from dictionary import nouns, verbs, sines, jitters
 
 def generate_sentence(start_noun, end_noun, verb_name, t_array):
-    """
-    Generate a life signal from start -> end noun via verb
-    t_array: np.linspace(0,1,num_points)
-    """
-    start = NOUNS[start_noun]
-    end = NOUNS[end_noun]
-    delta_theta = (end["theta"] - start["theta"] + 180) % 360 - 180
-    verb_func = VERBS[verb_name]
+    start = nouns[start_noun]
+    end = nouns[end_noun]
+    verb = verbs[verb_name]
 
-    signals = []
-    for t in t_array:
-        u = verb_func(t)
-        theta_t = start["theta"] + delta_theta * u
-        x_t = np.cos(np.deg2rad(theta_t))
-        y_t = np.sin(np.deg2rad(theta_t))
-        # Choose pulse or jitter
-        signal_fn = SINES[start["signal"]] if x_t > 0 else JITTERS[start["signal"]]
-        signal_value = signal_fn() * y_t if callable(signal_fn) else signal_fn
-        signals.append(signal_value)
-    return np.array(signals)
+    u = verb(t_array)
+    theta = np.arctan2(end["y"], end["x"]) - np.arctan2(start["y"], start["x"])
+    theta_t = np.arctan2(start["y"], start["x"]) + u * theta
+
+    # Mix signals
+    x_t = np.cos(theta_t)
+    y_t = np.sin(theta_t)
+    signal = np.zeros_like(t_array)
+
+    for i in range(len(t_array)):
+        if x_t[i] > 0:
+            signal[i] = y_t[i] + sines[start["signal"]](t_array[i])
+        else:
+            signal[i] = y_t[i] + jitters[start["signal"]](t_array[i])
+
+    return signal
